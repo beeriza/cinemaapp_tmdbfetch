@@ -107,5 +107,4 @@ for i in j:
      z = get_tmdb_info_by_cinema_name(unicode(i['title']))
      print i['title']
      if z:
-         pprint.pprint(z)
          print z.get('eng_name')
