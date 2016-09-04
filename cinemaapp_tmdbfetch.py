@@ -61,30 +61,31 @@ def get_tmdb_info_by_cinema_name(movie_name):
     if tmdb_data:
         return tmdb_data
 
-    movie_name_no_spc = re.sub(' +',' ',movie_name)
+    movie_name_no_spc = ' '.join(movie_name.split())
+
+    # Find bad words in movie    
     movie_name_no_spc_spl = movie_name_no_spc.split()
+    bad_words_in_movie = [movie_word for movie_word in movie_name_no_spc_spl for bad_word in bad_words if bad_word in movie_word]
 
     # Match by exact word, will not work with לרוסית if the word is רוסית
     #set_bad_words = set(bad_words)
     #set_movie_name_no_spc_spl = set(movie_name_no_spc_spl)
     # = set_bad_words.intersection(set_movie_name_no_spc_spl)
 
-    bad_words_in_movie = [movie_word for movie_word in movie_name_no_spc_spl for bad_word in bad_words if bad_word in movie_word]
-    
+    # Create bad words combinations 
     bad_words_in_movie_combinations = [c for i in range(len(bad_words_in_movie)) for c in itertools.combinations(bad_words_in_movie, i+1)]
 
+    movie_name_no_spc_orig = movie_name_no_spc
     for bad_word_comb in bad_words_in_movie_combinations:
-        for bad_word in bad_word_comb:
-            movie_name_no_spc = movie_name_no_spc.replace(bad_word,'')
-        movie_name_no_spc = re.sub(' +',' ',movie_name_no_spc)
+        movie_name_no_spc = reduce(lambda m,b : m.replace(b,''),bad_word_comb,movie_name_no_spc)
+        movie_name_no_spc = ' '.join(movie_name_no_spc.split())
         tmdb_data = get_tmdb_movie_info_by_name(movie_name_no_spc)
         if tmdb_data:
+            tmdb_data['bad_words'] = bad_word_comb
             return tmdb_data
-
+        movie_name_no_spc = movie_name_no_spc_orig
+        
     return None
-    
 
 import pprint
-pprint.pprint(get_tmdb_info_by_cinema_name(u'ice age תלת3D'))
-    
-    
+pprint.pprint(get_tmdb_info_by_cinema_name(u'ice age 3 3D רוסית מדובב לעברית'))
