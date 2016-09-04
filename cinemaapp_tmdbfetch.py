@@ -24,7 +24,6 @@ def get_tmdb_movie_info_by_name(movie_name):
 
     # Take latest movie
     latest_movie_tmdb_id = search_json_results_sorted[-1]['id']
-
     movie_url = 'http://api.themoviedb.org/3/movie/{}'.format(latest_movie_tmdb_id)
     payload = {'api_key': api_key, 'id': latest_movie_tmdb_id,'language':'he-IL'}
     movie_request = requests.get(movie_url,params=payload)
@@ -33,7 +32,7 @@ def get_tmdb_movie_info_by_name(movie_name):
     tmdb_data['heb_name'] = movie_json['title']
     tmdb_data['eng_name'] = movie_json['original_title']
     tmdb_data['imdb_id'] = movie_json['imdb_id']
-    tmdb_data['poster_link'] = image_tmdb_path + movie_json['poster_path']
+    #tmdb_data['poster_link'] = image_tmdb_path + movie_json['poster_path']
     tmdb_data['genre_heb'] = ','.join(genre['name'] for genre in movie_json['genres'])
     movie_trailer_url = 'http://api.themoviedb.org/3/movie/{}/videos'.format(latest_movie_tmdb_id)
     payload = {'api_key': api_key, 'id': latest_movie_tmdb_id}
@@ -98,4 +97,15 @@ def get_tmdb_info_by_cinema_name(movie_name):
     return None
 
 import pprint
-pprint.pprint(get_tmdb_info_by_cinema_name(u'ice age 3 3D רוסית מדובב לעברית'))
+##pprint.pprint(get_tmdb_info_by_cinema_name(u'ice age 3 3D רוסית מדובב לעברית'))
+
+import requests
+r = requests.get('https://storage.scrapinghub.com/items/62468/2/172?apikey=a2e488e0171345568c54d0d81c23669e&format=json')
+j = r.json()
+
+for i in j:
+     z = get_tmdb_info_by_cinema_name(unicode(i['title']))
+     print i['title']
+     if z:
+         pprint.pprint(z)
+         print z.get('eng_name')
