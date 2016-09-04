@@ -106,15 +106,12 @@ class TmdbMovieParser:
             for bad_word_comb in bad_words_in_movie_combinations:
                 # Replace all bad words
                 movie_name = reduce(lambda m, b: m.replace(b, ''), bad_word_comb, movie_name)
-
-                movie_name = self._remove_extra_spaces(movie_name)
-                tmdb_data = self.get_info(movie_name)
-
-                if tmdb_data:
+                try:
+                    tmdb_data = self.get_info(movie_name)
                     tmdb_data['bad_words'] = bad_word_comb
                     return tmdb_data
-
-                movie_name = movie_name_orig
+                except TmdbMovieParser.TmdbSearchFailed:
+                    movie_name = movie_name_orig
 
             return None
 
