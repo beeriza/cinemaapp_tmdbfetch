@@ -56,16 +56,21 @@ def get_tmdb_movie_info_by_name(movie_name):
 
     return tmdb_data
 
+def remove_extra_spaces(movie_name):
+    return ' '.join(movie_name.split())
+
 def get_tmdb_info_by_cinema_name(movie_name):
     tmdb_data = get_tmdb_movie_info_by_name(movie_name)
+
+    # Movie name is awesome
     if tmdb_data:
         return tmdb_data
-
-    movie_name_no_spc = ' '.join(movie_name.split())
+    
+    movie_name = remove_extra_spaces(movie_name)
 
     # Find bad words in movie    
-    movie_name_no_spc_spl = movie_name_no_spc.split()
-    bad_words_in_movie = [movie_word for movie_word in movie_name_no_spc_spl for bad_word in bad_words if bad_word in movie_word]
+    movie_name_spl = movie_name.split()
+    bad_words_in_movie = [movie_word for movie_word in movie_name_spl for bad_word in bad_words if bad_word in movie_word]
 
     # Match by exact word, will not work with לרוסית if the word is רוסית
     #set_bad_words = set(bad_words)
@@ -75,15 +80,20 @@ def get_tmdb_info_by_cinema_name(movie_name):
     # Create bad words combinations 
     bad_words_in_movie_combinations = [c for i in range(len(bad_words_in_movie)) for c in itertools.combinations(bad_words_in_movie, i+1)]
 
-    movie_name_no_spc_orig = movie_name_no_spc
+    movie_name_orig = movie_name
+    
     for bad_word_comb in bad_words_in_movie_combinations:
-        movie_name_no_spc = reduce(lambda m,b : m.replace(b,''),bad_word_comb,movie_name_no_spc)
-        movie_name_no_spc = ' '.join(movie_name_no_spc.split())
-        tmdb_data = get_tmdb_movie_info_by_name(movie_name_no_spc)
+        # Replace all bad words
+        movie_name = reduce(lambda m,b : m.replace(b,''),bad_word_comb,movie_name)
+        
+        movie_name = remove_extra_spaces(movie_name)
+        tmdb_data = get_tmdb_movie_info_by_name(movie_name)
+
         if tmdb_data:
             tmdb_data['bad_words'] = bad_word_comb
             return tmdb_data
-        movie_name_no_spc = movie_name_no_spc_orig
+
+        movie_name = movie_name_orig
         
     return None
 
