@@ -14,7 +14,7 @@ TMDB_API_MOVIE_DETAILS_URL = 'http://api.themoviedb.org/3/movie/'
 
 YOUTUBE_TRAILER_PATH = 'https://www.youtube.com/watch?v='
 FAKE_TIME = datetime.datetime(1, 1, 1)
-BAD_WORDS = ('3D', u'עברית', u'רוסית', u'תלת', u'מדובב')
+BAD_WORDS = {'3D', u'עברית', u'רוסית', u'תלת', u'מדובב'}
 
 
 class TmdbMovieParser:
@@ -22,10 +22,33 @@ class TmdbMovieParser:
         pass
 
     def get_info(self, movie_name):
-        return self._get_movie_details(movie_name)
+        for possible_movie_name, show_type in self._generate_possible_movie_names(movie_name):
+                tmdb_data = self._get_movie_details(possible_movie_name)
+                if tmdb_data:
+                    tmdb_data['show_type'] = show_type
+                    return tmdb_data
+
+    def _generate_possible_movie_names(self, movie_name):
+        yield (movie_name, 'Normal')
+        for bad_word_comb in self._get_bad_words_combinations(movie_name):
+            yield (self._clear_bad_words(bad_word_comb, movie_name), bad_word_comb)
+
+    def _clear_bad_words(self, bad_word_comb, movie_name):
+        return reduce(lambda m, b: m.replace(b, ''), bad_word_comb, movie_name)
+
+    def _get_bad_words_combinations(self, movie_name):
+        bad_words_in_movie = self._get_bad_words_in_movie_name(movie_name)
+        return [c for i in range(len(bad_words_in_movie)) for c in itertools.combinations(bad_words_in_movie, i + 1)]
+
+    def _get_bad_words_in_movie_name(self, movie_name):
+        movie_name_words = movie_name.split()
+        return [movie_word for movie_word in movie_name_words for bad_word in BAD_WORDS
+                if bad_word in movie_word]
 
     def _get_movie_details(self, movie_name):
         movie_tmdb_id = self._get_tmdb_movie_id_search_result(movie_name)
+        if not movie_tmdb_id:
+            return None
         payload = {'api_key': API_KEY, 'id': movie_tmdb_id, 'language': 'he-IL'}
         movie_json = requests.get(TMDB_API_MOVIE_DETAILS_URL + str(movie_tmdb_id), params=payload).json()
         return {'heb_name': movie_json['title'],
@@ -33,18 +56,20 @@ class TmdbMovieParser:
                 'imdb_id': movie_json['imdb_id'],
                 'genre_heb': self._parse_genres(movie_json),
                 'movie_trailer_path': self._get_movie_trailer_path(movie_tmdb_id),
-                'imdb_rank': self._get_imdb_rating(movie_json['imdb_id'])}
+                'overview': movie_json['overview'],
+                'imdb_rank': self._get_imdb_rating(movie_json['imdb_id']),
+                'release_year': self._get_release_date_from_tmdb_result(movie_json).year}
 
     def _get_tmdb_movie_id_search_result(self, movie_name):
         payload = {'api_key': API_KEY, 'query': self._remove_extra_spaces(movie_name), 'include_adult': 'false'}
         tmdb_result = requests.get(TMDB_API_MOVIE_SEARCH_URL, params=payload).json()['results']
-        if tmdb_result:
-            return self._get_most_relevant_movie_id_from_tmdb_result(tmdb_result)
-        else:
-            raise TmdbMovieParser.TmdbSearchFailed()
+        return self._get_most_relevant_movie_id_from_tmdb_result(tmdb_result) if tmdb_result else None
 
     def _get_most_relevant_movie_id_from_tmdb_result(self, tmdb_search_result):
-        return max(tmdb_search_result, key=self._get_release_date_from_tmdb_result)['id']
+        most_relevant_movie = max(tmdb_search_result, key=self._get_release_date_from_tmdb_result)
+        if self._get_release_date_from_tmdb_result(most_relevant_movie).year < datetime.date.today().year - 2:
+            return None
+        return most_relevant_movie['id']
 
     def _get_release_date_from_tmdb_result(self, tmdb_result):
         if tmdb_result.get('release_date') != '':
@@ -82,38 +107,3 @@ class TmdbMovieParser:
 
     def _remove_extra_spaces(self, movie_name):
         return ' '.join(movie_name.split())
-
-    def get_tmdb_info_by_cinema_name(self, movie_name):
-        try:
-            return self.get_info(movie_name)
-        except TmdbMovieParser.TmdbSearchFailed:
-            # Find bad words in movie
-            movie_name_spl = movie_name.split()
-            bad_words_in_movie = [movie_word for movie_word in movie_name_spl for bad_word in BAD_WORDS if
-                                  bad_word in movie_word]
-
-            # Match by exact word, will not work with לרוסית if the word is רוסית
-            # set_bad_words = set(bad_words)
-            # set_movie_name_no_spc_spl = set(movie_name_no_spc_spl)
-            # = set_bad_words.intersection(set_movie_name_no_spc_spl)
-
-            # Create bad words combinations
-            bad_words_in_movie_combinations = [c for i in range(len(bad_words_in_movie)) for c in
-                                               itertools.combinations(bad_words_in_movie, i + 1)]
-
-            movie_name_orig = movie_name
-
-            for bad_word_comb in bad_words_in_movie_combinations:
-                # Replace all bad words
-                movie_name = reduce(lambda m, b: m.replace(b, ''), bad_word_comb, movie_name)
-                try:
-                    tmdb_data = self.get_info(movie_name)
-                    tmdb_data['bad_words'] = bad_word_comb
-                    return tmdb_data
-                except TmdbMovieParser.TmdbSearchFailed:
-                    movie_name = movie_name_orig
-
-            return None
-
-    class TmdbSearchFailed(Exception):
-        pass
