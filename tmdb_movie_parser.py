@@ -6,6 +6,8 @@ import re
 import requests
 from imdb import IMDb
 
+GOOGLE_SUGGESTIONS_URL = "http://suggestqueries.google.com/complete/search?client=firefox&q="
+
 API_KEY = '546a1e3c91bafcbaccfa4fcae533738c'
 
 TMDB_API_MOVIE_SEARCH_URL = 'http://api.themoviedb.org/3/search/movie'
@@ -32,6 +34,22 @@ class TmdbMovieParser:
         yield (movie_name, 'Normal')
         for bad_word_comb in self._get_bad_words_combinations(movie_name):
             yield (self._clear_bad_words(bad_word_comb, movie_name), bad_word_comb)
+
+        for bad_word_comb in self._get_bad_words_combinations(movie_name):
+            google_suggest = self._google_suggest(self._clear_bad_words(bad_word_comb, movie_name))
+            if google_suggest:
+                for suggest in google_suggest:
+                    yield (suggest, 'Normal')
+        google_suggest = self._google_suggest(movie_name)
+        if google_suggest:
+            for suggest in google_suggest:
+                yield (suggest, 'Normal')
+
+    def _google_suggest(self, name):
+        try:
+            return requests.get(GOOGLE_SUGGESTIONS_URL + name).json()[1]
+        except IndexError:
+            return None
 
     def _clear_bad_words(self, bad_word_comb, movie_name):
         return reduce(lambda m, b: m.replace(b, ''), bad_word_comb, movie_name)
